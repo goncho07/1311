@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # Backend - Laravel 12 API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: peepos-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/var/www/html
+      - /var/www/html/vendor
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=peepos_db
+      - DB_USERNAME=peepos_user
+      - DB_PASSWORD=peepos_pass
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - peepos-network
+
+  # Frontend - React + Vite
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: peepos-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+    depends_on:
+      - backend
+    networks:
+      - peepos-network
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: peepos-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_pass
+      - MYSQL_DATABASE=peepos_db
+      - MYSQL_USER=peepos_user
+      - MYSQL_PASSWORD=peepos_pass
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - peepos-network
+
+  # Redis Cache
+  redis:
+    image: redis:alpine
+    container_name: peepos-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - peepos-network
+
+  # WAHA - WhatsApp HTTP API
+  waha:
+    image: devlikeapro/waha
+    container_name: peepos-waha
+    ports:
+      - "3000:3000"
+    environment:
+      - WHATSAPP_HOOK_URL=http://backend:8000/api/webhooks/whatsapp
+      - WHATSAPP_HOOK_EVENTS=message,session.status
+      - WHATSAPP_DEFAULT_ENGINE=WEBJS
+    volumes:
+      - waha_data:/app/.sessions
+    networks:
+      - peepos-network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+    driver: local
+  waha_data:
+    driver: local
+
+networks:
+  peepos-network:
+    driver: bridge

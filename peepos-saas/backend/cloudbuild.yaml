@@ -1,0 +1,145 @@
+# ═══════════════════════════════════════════════════════════════
+# PEEPOS Backend - Cloud Build Configuration
+# Automatiza el deployment a Google Cloud Run
+# ═══════════════════════════════════════════════════════════════
+
+steps:
+  # ────────────────────────────────────────────────────────────────
+  # Step 1: Build imagen Docker
+  # ────────────────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-image'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/peepos-backend:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/peepos-backend:latest'
+      - '-f'
+      - 'Dockerfile'
+      - '.'
+    dir: 'backend'
+
+  # ────────────────────────────────────────────────────────────────
+  # Step 2: Push imagen a Container Registry
+  # ────────────────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-image'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'gcr.io/$PROJECT_ID/peepos-backend'
+    waitFor: ['build-image']
+
+  # ────────────────────────────────────────────────────────────────
+  # Step 3: Ejecutar migraciones de base de datos (antes de deploy)
+  # ────────────────────────────────────────────────────────────────
+  - name: 'gcr.io/google-cloud-sdk/cloud-sdk'
+    id: 'run-migrations'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        if [ "$BRANCH_NAME" = "main" ] || [ "$BRANCH_NAME" = "master" ]; then
+          echo "Ejecutando migraciones en producción..."
+          gcloud run jobs execute peepos-migrations \
+            --region us-central1 \
+            --wait || echo "Migration job no encontrado, continuando..."
+        else
+          echo "Saltando migraciones en branch: $BRANCH_NAME"
+        fi
+    waitFor: ['push-image']
+
+  # ────────────────────────────────────────────────────────────────
+  # Step 4: Deploy a Cloud Run
+  # ────────────────────────────────────────────────────────────────
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy-cloudrun'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'peepos-api'
+      - '--image=gcr.io/$PROJECT_ID/peepos-backend:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--port=8080'
+      - '--add-cloudsql-instances=$_CLOUD_SQL_CONNECTION'
+      - '--set-env-vars=APP_ENV=$_APP_ENV,APP_DEBUG=false'
+      - '--set-secrets=APP_KEY=laravel-app-key:latest'
+      - '--set-secrets=DB_PASSWORD=mysql-password:latest'
+      - '--set-secrets=GEMINI_API_KEY=gemini-api-key:latest'
+      - '--memory=2Gi'
+      - '--cpu=2'
+      - '--min-instances=$_MIN_INSTANCES'
+      - '--max-instances=$_MAX_INSTANCES'
+      - '--concurrency=80'
+      - '--timeout=300'
+      - '--service-account=peepos-api@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--vpc-connector=$_VPC_CONNECTOR'
+    waitFor: ['run-migrations']
+
+  # ────────────────────────────────────────────────────────────────
+  # Step 5: Warm-up del servicio (post-deploy)
+  # ────────────────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/curl'
+    id: 'warmup-service'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        SERVICE_URL=$(gcloud run services describe peepos-api --region=us-central1 --format='value(status.url)')
+        echo "Calentando servicio: $SERVICE_URL"
+        curl -f "$SERVICE_URL/api/v1/health" || echo "Health check falló, pero continuando..."
+    waitFor: ['deploy-cloudrun']
+
+  # ────────────────────────────────────────────────────────────────
+  # Step 6: Limpiar imágenes antiguas (mantener últimas 10)
+  # ────────────────────────────────────────────────────────────────
+  - name: 'gcr.io/google-cloud-sdk/cloud-sdk'
+    id: 'cleanup-old-images'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        echo "Limpiando imágenes antiguas..."
+        gcloud container images list-tags gcr.io/$PROJECT_ID/peepos-backend \
+          --filter='-tags:*' \
+          --format='get(digest)' \
+          --limit=unlimited | \
+        tail -n +11 | \
+        while read digest; do
+          echo "Eliminando: gcr.io/$PROJECT_ID/peepos-backend@$digest"
+          gcloud container images delete "gcr.io/$PROJECT_ID/peepos-backend@$digest" --quiet --force-delete-tags || true
+        done
+        echo "Limpieza completada"
+    waitFor: ['warmup-service']
+
+# ────────────────────────────────────────────────────────────────
+# Configuración del build
+# ────────────────────────────────────────────────────────────────
+timeout: '1200s' # 20 minutos
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+  substitutionOption: 'ALLOW_LOOSE'
+
+# ────────────────────────────────────────────────────────────────
+# Imágenes a pushear
+# ────────────────────────────────────────────────────────────────
+images:
+  - 'gcr.io/$PROJECT_ID/peepos-backend:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/peepos-backend:latest'
+
+# ────────────────────────────────────────────────────────────────
+# Variables de sustitución (valores por defecto)
+# Sobrescribir con --substitutions en gcloud builds submit
+# ────────────────────────────────────────────────────────────────
+substitutions:
+  _APP_ENV: 'production'
+  _CLOUD_SQL_CONNECTION: 'peepos-saas:us-central1:peepos-mysql-prod'
+  _VPC_CONNECTOR: 'peepos-connector'
+  _MIN_INSTANCES: '1'
+  _MAX_INSTANCES: '100'

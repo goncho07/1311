@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # ═══════════════════════════════════════════════════════════════
+  # Laravel Application (PHP 8.2 + Apache)
+  # ═══════════════════════════════════════════════════════════════
+  laravel:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: development
+    container_name: peepos-backend
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www
+      - vendor:/var/www/vendor
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=peepos_central
+      - DB_USERNAME=root
+      - DB_PASSWORD=secret
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - peepos-network
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════
+  # MySQL 8.0 Database
+  # ═══════════════════════════════════════════════════════════════
+  mysql:
+    image: mysql:8.0
+    container_name: peepos-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: peepos_central
+      MYSQL_USER: peepos
+      MYSQL_PASSWORD: secret
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - peepos-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-psecret"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════
+  # Redis Cache & Queue
+  # ═══════════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: peepos-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - peepos-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════
+  # phpMyAdmin (Opcional - para gestión de BD)
+  # ═══════════════════════════════════════════════════════════════
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: peepos-phpmyadmin
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: secret
+    depends_on:
+      - mysql
+    networks:
+      - peepos-network
+    restart: unless-stopped
+
+# ═══════════════════════════════════════════════════════════════
+# Volumes
+# ═══════════════════════════════════════════════════════════════
+volumes:
+  mysql-data:
+    driver: local
+  redis-data:
+    driver: local
+  vendor:
+    driver: local
+
+# ═══════════════════════════════════════════════════════════════
+# Networks
+# ═══════════════════════════════════════════════════════════════
+networks:
+  peepos-network:
+    driver: bridge

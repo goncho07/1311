@@ -1,0 +1,1 @@
+Este directorio es para los assets de imágenes locales (logos, íconos, fondos, etc.). Por favor, descargue las imágenes externas y colóquelas aquí con los nombres correspondientes referenciados en el código.
