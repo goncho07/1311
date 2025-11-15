@@ -11,7 +11,6 @@ import LoginPage from './pages/LoginPage';
 
 // Dashboards
 import Dashboard from './pages/Dashboard';
-import TeacherDashboard from './pages/TeacherDashboard';
 import ApoderadoDashboard from './pages/ApoderadoDashboard';
 import EstudianteDashboard from './src/pages/estudiante/DashboardEstudiantePage';
 
@@ -41,8 +40,30 @@ import CompetenciasPonderacionesPage from './pages/CompetenciasPonderacionesPage
 import PlaceholderPage from './pages/PlaceholderPage';
 
 // Docente Pages
-import RegistrarNotasPage from './pages/RegistrarNotasPage';
-import LibroCalificacionesPage from './pages/LibroCalificacionesPage';
+import DashboardDocentePage from './src/pages/docente/DashboardDocentePage';
+// PEEPOS ATTEND
+import RegistrarAsistenciaPage from './src/pages/docente/asistencia/RegistrarAsistenciaPage';
+import ReporteAsistenciaPage from './src/pages/docente/asistencia/ReporteAsistenciaPage';
+import JustificacionesPage from './src/pages/docente/asistencia/JustificacionesPage';
+// PEEPOS ACADEMIC
+import RegistrarNotasDocentePage from './src/pages/docente/evaluaciones/RegistrarNotasPage';
+import LibroCalificacionesDocentePage from './src/pages/docente/evaluaciones/LibroCalificacionesPage';
+// Tareas
+import MisTareasDocentePage from './src/pages/docente/tareas/MisTareasPage';
+import CrearTareaPage from './src/pages/docente/tareas/CrearTareaPage';
+import RevisarEntregasPage from './src/pages/docente/tareas/RevisarEntregasPage';
+// PEEPOS TUTOR
+import PlanTutoriaPage from './src/pages/docente/tutoria/PlanTutoriaPage';
+import SesionesTutoriaPage from './src/pages/docente/tutoria/SesionesTutoriaPage';
+import CasosTutoriaPage from './src/pages/docente/tutoria/CasosTutoriaPage';
+// Comunicaciones
+import EnviarComunicadoPage from './src/pages/docente/comunicaciones/EnviarComunicadoPage';
+// Planificación
+import SesionesAprendizajePage from './src/pages/docente/planificacion/SesionesAprendizajePage';
+// Horario
+import MiHorarioDocentePage from './src/pages/docente/horario/MiHorarioDocentePage';
+
+// Old import for compatibility
 import EvaluacionesPage from './pages/EvaluacionesPage_API_READY';
 
 // Estudiante Pages
@@ -224,37 +245,42 @@ const DirectorRoutes = () => (
 const TeacherRoutes = () => (
   <TeacherLayout>
     <Routes>
-      <Route path="/" element={<TeacherDashboard />} />
+      <Route path="/" element={<DashboardDocentePage />} />
+      <Route path="/dashboard-docente" element={<DashboardDocentePage />} />
 
       {/* PEEPOS ATTEND - Asistencia */}
-      <Route path="/asistencia" element={<PlaceholderPage title="Mi Asistencia" description="Registrar asistencia de mis secciones" icon={ClipboardCheck} />} />
-      <Route path="/asistencia/registrar" element={<PlaceholderPage title="Registrar Asistencia" description="Modo manual o QR" icon={ClipboardCheck} />} />
-      <Route path="/asistencia/reporte" element={<PlaceholderPage title="Reporte de Asistencia" description="Ver porcentaje por estudiante" icon={FileText} />} />
-      <Route path="/asistencia/justificaciones" element={<PlaceholderPage title="Justificaciones" description="Aprobar/rechazar justificaciones" icon={ClipboardCheck} />} />
+      <Route path="/asistencia/registrar" element={<RegistrarAsistenciaPage />} />
+      <Route path="/asistencia/reporte" element={<ReporteAsistenciaPage />} />
+      <Route path="/asistencia/justificaciones" element={<JustificacionesPage />} />
 
       {/* PEEPOS ACADEMIC - Evaluaciones */}
       <Route path="/evaluaciones" element={<EvaluacionesPage />} />
-      <Route path="/evaluaciones/registrar-notas" element={<RegistrarNotasPage />} />
-      <Route path="/evaluaciones/libro-calificaciones" element={<LibroCalificacionesPage />} />
+      <Route path="/evaluaciones/registrar-notas" element={<RegistrarNotasDocentePage />} />
+      <Route path="/evaluaciones/libro-calificaciones" element={<LibroCalificacionesDocentePage />} />
       <Route path="/evaluaciones/boletas" element={<PlaceholderPage title="Boletas Generadas" description="Ver boletas de mis secciones" icon={FileText} />} />
 
       {/* Tareas Académicas */}
-      <Route path="/tareas" element={<PlaceholderPage title="Mis Tareas" description="Gestionar tareas asignadas" icon={ClipboardCheck} />} />
-      <Route path="/tareas/crear" element={<PlaceholderPage title="Crear Tarea" description="Asignar nueva tarea" icon={ClipboardCheck} />} />
+      <Route path="/tareas" element={<MisTareasDocentePage />} />
+      <Route path="/tareas/crear" element={<CrearTareaPage />} />
+      <Route path="/tareas/:tareaId/editar" element={<CrearTareaPage />} />
+      <Route path="/tareas/:tareaId/entregas" element={<RevisarEntregasPage />} />
 
       {/* PEEPOS TUTOR - Tutorías */}
-      <Route path="/tutoria" element={<PlaceholderPage title="Plan de Tutoría" description="4 dimensiones MINEDU" icon={Users} />} />
-      <Route path="/tutoria/sesiones" element={<PlaceholderPage title="Sesiones de Tutoría" description="Registrar sesiones ejecutadas" icon={CalendarIcon} />} />
-      <Route path="/tutoria/casos" element={<PlaceholderPage title="Casos Individuales" description="Seguimiento de estudiantes" icon={AlertTriangle} />} />
+      <Route path="/tutoria" element={<PlanTutoriaPage />} />
+      <Route path="/tutoria/plan" element={<PlanTutoriaPage />} />
+      <Route path="/tutoria/sesiones" element={<SesionesTutoriaPage />} />
+      <Route path="/tutoria/casos" element={<CasosTutoriaPage />} />
 
       {/* Comunicaciones */}
-      <Route path="/comunicaciones" element={<PlaceholderPage title="Comunicaciones" description="Enviar mensajes a apoderados" icon={MessageSquare} />} />
+      <Route path="/comunicaciones" element={<EnviarComunicadoPage />} />
+      <Route path="/comunicaciones/enviar" element={<EnviarComunicadoPage />} />
 
       {/* Planificación */}
-      <Route path="/planificacion" element={<PlaceholderPage title="Sesiones de Aprendizaje" description="Planificación curricular" icon={BookOpen} />} />
+      <Route path="/planificacion" element={<SesionesAprendizajePage />} />
+      <Route path="/planificacion/sesiones" element={<SesionesAprendizajePage />} />
 
       {/* Mi Horario */}
-      <Route path="/mi-horario" element={<PlaceholderPage title="Mi Horario" description="Ver mi horario semanal" icon={CalendarIcon} />} />
+      <Route path="/mi-horario" element={<MiHorarioDocentePage />} />
 
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
